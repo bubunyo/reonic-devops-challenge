@@ -3,8 +3,8 @@ name: Deploy CDK Stack
 on:
   push:
     branches: [main]
-    paths:
-      - 'cdk/**'
+    # paths:
+    #   - 'cdk/**'
 
 jobs:
   deploy:

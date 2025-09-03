@@ -3,8 +3,8 @@ name: Deploy Lambda to AWS
 on:
   push:
     branches: [main, develop]
-    paths:
-      - 'app/**'
+    # paths:
+    #   - 'app/**'
 
 permissions:
   id-token: write
