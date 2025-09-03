@@ -42,5 +42,6 @@ jobs:
 
 
       - name: Deploy CDK
+        working-directory: app
         run: npx cdk deploy --all --require-approval never -c env=$ENVIRONMENT
 
