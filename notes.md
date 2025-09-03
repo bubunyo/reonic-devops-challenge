@@ -6,3 +6,4 @@
 - inject sha into lambda and assert on that to check successful deploy 
 - isolate/remove github stack to prevent constant deletion
 - multe az/region deployment of database
+- cache for github actions image creation
