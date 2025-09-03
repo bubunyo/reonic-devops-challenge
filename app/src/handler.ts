@@ -31,7 +31,7 @@ async function getDatabaseConfig(): Promise<DatabaseConfig> {
     const secretsClient = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
     const command = new GetSecretValueCommand({ SecretId: secretName });
     const response = await secretsClient.send(command);
-    
+
     if (!response.SecretString) {
       throw new Error('Secret value is empty');
     }
@@ -63,28 +63,28 @@ async function initializeDatabase(client: Client): Promise<void> {
 
 export const handler = async (event: any) => {
   let client: Client | null = null;
-  
+
   try {
     // Get database configuration
     const dbConfig = await getDatabaseConfig();
-    
+
     // Create database client
     client = new Client(dbConfig);
     await client.connect();
-    
+
     // Initialize database table
     await initializeDatabase(client);
-    
+
     // Insert a new row
     const insertResult = await client.query(
       'INSERT INTO test_records (message) VALUES ($1) RETURNING id',
       [`Hello from Lambda at ${new Date().toISOString()}`]
     );
-    
+
     // Get total count
     const countResult = await client.query('SELECT COUNT(*) as total FROM test_records');
     const totalCount = parseInt(countResult.rows[0].total);
-    
+
     return {
       statusCode: 200,
       headers: {
@@ -97,10 +97,10 @@ export const handler = async (event: any) => {
         timestamp: new Date().toISOString()
       })
     };
-    
+
   } catch (error) {
     console.error('Error:', error);
-    
+
     return {
       statusCode: 500,
       headers: {
@@ -112,7 +112,7 @@ export const handler = async (event: any) => {
         timestamp: new Date().toISOString()
       })
     };
-    
+
   } finally {
     if (client) {
       await client.end();

@@ -25,9 +25,7 @@ export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
 };
 
 export interface DatabaseStackProps extends cdk.StackProps {
-  vpc: ec2.IVpc;
-  environment: string;
-  component?: string;
+  vpc: ec2.Vpc;
   databaseConfig?: Partial<DatabaseConfig>;
 }
 
@@ -106,11 +104,6 @@ export class DatabaseStack extends cdk.Stack {
       targetId: this.database.instanceIdentifier,
       targetType: 'AWS::RDS::DBInstance',
     });
-
-    // Add tags
-    cdk.Tags.of(this).add('Environment', props.environment);
-    cdk.Tags.of(this).add('Component', props.component || 'database');
-    cdk.Tags.of(this).add('ManagedBy', 'CDK');
 
     // // Outputs
     // new cdk.CfnOutput(this, 'DatabaseEndpoint', {

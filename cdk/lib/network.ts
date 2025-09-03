@@ -49,11 +49,5 @@ export class VpcStack extends cdk.Stack {
       ),
       natGateways: props.vpcConfig.natGateways, // No NAT gateways. 
     });
-
-    // Output VPC ID for reference
-    new cdk.CfnOutput(this, `${props.vpcConfig.name}::VPCId`, {
-      value: this.vpc.vpcId,
-      description: 'VPC ID',
-    });
   }
 }

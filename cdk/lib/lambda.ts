@@ -11,21 +11,21 @@ export interface LambdaConfig {
   memorySize: number;
   timeout: cdk.Duration;
   reservedConcurrentExecutions?: number;
+  repoTag: string;
 }
 
 export const DEFAULT_LAMBDA_CONFIG: LambdaConfig = {
   memorySize: 512,
   timeout: cdk.Duration.seconds(30),
-  reservedConcurrentExecutions: undefined
+  reservedConcurrentExecutions: undefined,
+  repoTag: "latest"
 };
 
 export interface LambdaStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
   database: rds.DatabaseInstance;
   databaseSecret: secretsmanager.Secret;
-  imageUri: string;
-  environment: string;
-  component?: string;
+  repo: ecr.Repository;
   lambdaConfig?: Partial<LambdaConfig>;
 }
 
@@ -56,17 +56,12 @@ export class LambdaStack extends cdk.Stack {
       'Allow Lambda access to PostgreSQL'
     );
 
-    const repo = ecr.Repository.fromRepositoryAttributes(this, "ImportedRepo", {
-      repositoryName: "my-lambda",
-      repositoryArn: "arn:aws:ecr:us-east-1:123456789012:repository/my-lambda",
-    });
-
     // Create Lambda function with Docker image
-    this.lambdaFunction = new lambda.Function(this, 'AppFunction', {
+    this.lambdaFunction = new lambda.Function(this, 'LambdaFunction', {
       runtime: lambda.Runtime.FROM_IMAGE,
       handler: lambda.Handler.FROM_IMAGE,
-      code: lambda.Code.fromEcrImage(repo, {
-        tagOrDigest: "latest", // from the image URL
+      code: lambda.Code.fromEcrImage(props.repo, {
+        tagOrDigest: props.lambdaConfig?.repoTag, // from the image URL
       }),
       vpc: props.vpc,
       vpcSubnets: {
@@ -78,27 +73,21 @@ export class LambdaStack extends cdk.Stack {
       reservedConcurrentExecutions: config.reservedConcurrentExecutions,
       environment: {
         DB_SECRET_NAME: props.databaseSecret.secretArn,
-        AWS_REGION: props.env?.region || ''
       },
     });
 
     // Grant Lambda permission to read database secret
     props.databaseSecret.grantRead(this.lambdaFunction);
 
-    // Add tags
-    cdk.Tags.of(this).add('Environment', props.environment);
-    cdk.Tags.of(this).add('Component', props.component || 'compute');
-    cdk.Tags.of(this).add('ManagedBy', 'CDK');
+    // Outputs
+    new cdk.CfnOutput(this, 'LambdaFunctionArn', {
+      value: this.lambdaFunction.functionArn,
+      description: 'Lambda function ARN',
+    });
 
-    // // Outputs
-    // new cdk.CfnOutput(this, 'LambdaFunctionArn', {
-    //   value: this.lambdaFunction.functionArn,
-    //   description: 'Lambda function ARN',
-    // });
-
-    // new cdk.CfnOutput(this, 'LambdaFunctionName', {
-    //   value: this.lambdaFunction.functionName,
-    //   description: 'Lambda function name',
-    // });
+    new cdk.CfnOutput(this, 'LambdaFunctionName', {
+      value: this.lambdaFunction.functionName,
+      description: 'Lambda function name',
+    });
   }
 }
