@@ -12,6 +12,7 @@ permissions:
 
 env:
   ECR_REPOSITORY: reonic-lambda-app
+  LAMBDA_FUNCTION_NAME: reonic-lambda-app
 
 jobs:
   deploy:
@@ -22,9 +23,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Print secret
-        run: echo "Region is ${{ vars.AWS_REGION }}, Role is ${{ secrets.AWS_GITHUB_ROLE_ARN }} "
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4

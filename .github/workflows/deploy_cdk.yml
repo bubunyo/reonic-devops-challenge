@@ -25,7 +25,16 @@ jobs:
           npm install -g aws-cdk
           npm run install:all
 
-      - name: Build application
-        run: npm run build:app
 
-# Add your code to deploy the App here
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Set env variable
+        run: echo "ENVIRONMENT=${{ job.environment }}" >> $GITHUB_ENV
+
+      - name: Deploy CDK
+        run: npx cdk deploy --require-approval never -c env=$ENVIRONMENT
+

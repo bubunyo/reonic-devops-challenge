@@ -68,6 +68,14 @@ export class GitHubStack extends cdk.Stack {
       resources: ['*']
     }));
 
+    this.deploymentRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['sts:AssumeRole'],
+      resources: [
+        `arn:aws:iam::${this.account}:role/cdk-hnb659fds-deploy-role-${this.account}-${this.region}`,
+      ],
+    }));
+
+
     // SNS topic for deployment notifications
     this.alarmTopic = new sns.Topic(this, 'DeploymentAlarmTopic', {
       displayName: `${props.environment} Deployment Notifications`
