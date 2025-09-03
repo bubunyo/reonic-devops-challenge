@@ -21,7 +21,7 @@ export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
   databaseName: 'postgres',
   port: 5432,
   backupRetentionDays: 3,
-  deletionProtection: true
+  deletionProtection: false
 };
 
 export interface DatabaseStackProps extends cdk.StackProps {
@@ -80,7 +80,7 @@ export class DatabaseStack extends cdk.Stack {
     // Create RDS PostgreSQL instance
     this.database = new rds.DatabaseInstance(this, 'PostgreSQLInstance', {
       engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_15,
+        version: rds.PostgresEngineVersion.VER_17,
       }),
       instanceType: ec2.InstanceType.of(config.instanceClass, config.instanceSize),
       vpc: props.vpc,
@@ -97,11 +97,9 @@ export class DatabaseStack extends cdk.Stack {
       autoMinorVersionUpgrade: true,
       storageEncrypted: true,
     });
+  }
 
-    // new secretsmanager.CfnSecretTargetAttachment(this, 'DatabaseSecretAttachment', {
-    //   secretId: this.databaseSecret.secretArn,
-    //   targetId: this.database.instanceIdentifier,
-    //   targetType: 'AWS::RDS::DBInstance',
-    // });
+  public allowConnectionsFrom(securityGroup: ec2.ISecurityGroup,) {
+    this.database.connections.allowFrom(securityGroup, ec2.Port.tcp(this.database.instanceEndpoint.port), 'Allow access from Lambda');
   }
 }

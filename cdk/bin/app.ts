@@ -48,15 +48,15 @@ const databaseStack = new DatabaseStack(envScope, "MainPgDb", {
 
 databaseStack.addDependency(vpcStack);
 
-// const lambdaStack = new LambdaStack(envScope, "LambdaStack", {
-//   vpc: vpcStack.vpc,
-//   database: databaseStack.database,
-//   databaseSecret: databaseStack.databaseSecret,
-//   repo: imageRepoStack.repo,
-// })
+const lambdaStack = new LambdaStack(envScope, "LambdaStack", {
+  vpc: vpcStack.vpc,
+  // database: databaseStack.database,
+  dbSecretArn: databaseStack.databaseSecret.secretArn,
+  repo: imageRepoStack.repo,
+})
 
-// lambdaStack.addDependency(vpcStack);
-// lambdaStack.addDependency(databaseStack);
-// lambdaStack.addDependency(imageRepoStack);
+lambdaStack.addDependency(vpcStack);
+databaseStack.allowConnectionsFrom(lambdaStack.lambdaSecurityGroup);
+lambdaStack.addDependency(imageRepoStack);
 
-// githubStack.grantLambdaUpdateAccess(lambdaStack.lambdaFunction.functionArn)
+githubStack.grantLambdaUpdateAccess(lambdaStack.lambdaFunction.functionArn)

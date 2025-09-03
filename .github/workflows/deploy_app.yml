@@ -66,7 +66,7 @@ jobs:
           
           # Also tag as latest for the environment
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-          LATEST_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$ENVIRONMENT-latest
+          LATEST_URI=$ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker tag ${{ steps.build.outputs.image-uri }} $LATEST_URI
           docker push $LATEST_URI
 

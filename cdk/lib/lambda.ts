@@ -23,8 +23,7 @@ export const DEFAULT_LAMBDA_CONFIG: LambdaConfig = {
 
 export interface LambdaStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
-  database: rds.DatabaseInstance;
-  databaseSecret: secretsmanager.Secret;
+  dbSecretArn: string;
   repo: ecr.Repository;
   lambdaConfig?: Partial<LambdaConfig>;
 }
@@ -48,14 +47,6 @@ export class LambdaStack extends cdk.Stack {
       allowAllOutbound: true,
     });
 
-    // Update database security group to allow Lambda access
-    const dbSecurityGroup = props.database.connections.securityGroups[0];
-    dbSecurityGroup.addIngressRule(
-      this.lambdaSecurityGroup,
-      ec2.Port.tcp(5432),
-      'Allow Lambda access to PostgreSQL'
-    );
-
     // Create Lambda function with Docker image
     this.lambdaFunction = new lambda.Function(this, 'LambdaFunction', {
       runtime: lambda.Runtime.FROM_IMAGE,
@@ -72,12 +63,14 @@ export class LambdaStack extends cdk.Stack {
       timeout: config.timeout,
       reservedConcurrentExecutions: config.reservedConcurrentExecutions,
       environment: {
-        DB_SECRET_NAME: props.databaseSecret.secretArn,
+        DB_SECRET_NAME: props.dbSecretArn,
       },
     });
 
+    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(this, 'DbSecret', props.dbSecretArn);
+
     // Grant Lambda permission to read database secret
-    props.databaseSecret.grantRead(this.lambdaFunction);
+    dbSecret.grantRead(this.lambdaFunction);
 
     // Outputs
     new cdk.CfnOutput(this, 'LambdaFunctionArn', {
