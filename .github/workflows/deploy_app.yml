@@ -132,7 +132,7 @@ jobs:
           Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
           aws sns publish \
-            --topic-arn $SNS_TOPIC_ARN \
+            --topic-arn "$SNS_TOPIC_ARN" \
             --subject "Deployment Success - $ENVIRONMENT" \
             --message "$MESSAGE"
 
@@ -156,6 +156,6 @@ jobs:
           Please check the workflow logs for details."
           
           aws sns publish \
-            --topic-arn $SNS_TOPIC_ARN \
+            --topic-arn "$SNS_TOPIC_ARN" \
             --subject "Deployment Failure - $ENVIRONMENT" \
             --message "$ERROR_MESSAGE"

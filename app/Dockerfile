@@ -1,7 +1,7 @@
 FROM public.ecr.aws/lambda/nodejs:20 AS builder
 
 # Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
 # Install all dependencies (including dev dependencies for building)
 RUN npm ci
@@ -17,7 +17,7 @@ RUN npm run build
 FROM public.ecr.aws/lambda/nodejs:20
 
 # Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
 # Install only production dependencies
 RUN npm ci --only=production
