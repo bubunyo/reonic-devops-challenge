@@ -1,0 +1,159 @@
+name: Deploy Lambda to AWS
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'app/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ECR_REPOSITORY: my-app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    environment:  staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set environment variables
+        run: |
+          # if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          #   echo "ENVIRONMENT=production" >> $GITHUB_ENV
+          #   echo "LAMBDA_FUNCTION_NAME=${{ secrets.PROD_LAMBDA_FUNCTION_NAME }}" >> $GITHUB_ENV
+          #   echo "SNS_TOPIC_ARN=${{ secrets.PROD_SNS_TOPIC_ARN }}" >> $GITHUB_ENV
+          # else
+            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+            echo "LAMBDA_FUNCTION_NAME=${{ secrets.STAGING_LAMBDA_FUNCTION_NAME }}" >> $GITHUB_ENV
+            echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> $GITHUB_ENV
+          # fi
+
+      - name: Build Docker image
+        id: build
+        working-directory: app
+        run: |
+          cd app
+          IMAGE_TAG=${{ github.sha }}
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          echo "Building Docker image..."
+          docker build -t $IMAGE_URI .
+          echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Push to ECR
+        run: |
+          echo "Pushing image to ECR..."
+          docker push ${{ steps.build.outputs.image-uri }}
+          
+          # Also tag as latest for the environment
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          LATEST_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$ENVIRONMENT-latest
+          docker tag ${{ steps.build.outputs.image-uri }} $LATEST_URI
+          docker push $LATEST_URI
+
+      - name: Update Lambda function
+        id: update-lambda
+        run: |
+          echo "Updating Lambda function code..."
+          aws lambda update-function-code \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --image-uri ${{ steps.build.outputs.image-uri }} \
+            --output json > lambda-update.json
+          
+          echo "Waiting for function update to complete..."
+          aws lambda wait function-updated \
+            --function-name $LAMBDA_FUNCTION_NAME
+          
+          # Get function info
+          aws lambda get-function \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --output json > lambda-info.json
+          
+          FUNCTION_VERSION=$(cat lambda-info.json | jq -r '.Configuration.Version')
+          echo "function-version=$FUNCTION_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Test Lambda function
+        id: test-lambda
+        run: |
+          echo "Testing Lambda function..."
+          aws lambda invoke \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --payload '{"test": true}' \
+            --output json \
+            response.json
+          
+          STATUS_CODE=$(cat response.json | jq -r '.StatusCode')
+          if [ "$STATUS_CODE" != "200" ]; then
+            echo "Lambda test failed with status code: $STATUS_CODE"
+            exit 1
+          fi
+          
+          echo "Lambda function test successful"
+
+      - name: Post deployment metrics to CloudWatch
+        run: |
+          aws cloudwatch put-metric-data \
+            --namespace "Deployment/$ENVIRONMENT" \
+            --metric-data \
+              MetricName=DeploymentSuccess,Value=1,Unit=Count,Dimensions="[{Name=Repository,Value=${{ github.repository }}},{Name=Environment,Value=$ENVIRONMENT}]" \
+              MetricName=DeploymentDuration,Value=${{ job.duration }},Unit=Seconds,Dimensions="[{Name=Repository,Value=${{ github.repository }}},{Name=Environment,Value=$ENVIRONMENT}]"
+
+      - name: Send success notification
+        if: success()
+        run: |
+          MESSAGE="✅ Successful deployment to $ENVIRONMENT
+          
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Image: ${{ steps.build.outputs.image-uri }}
+          Function Version: ${{ steps.update-lambda.outputs.function-version }}
+          Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          aws sns publish \
+            --topic-arn $SNS_TOPIC_ARN \
+            --subject "Deployment Success - $ENVIRONMENT" \
+            --message "$MESSAGE"
+
+      - name: Send failure alarm to CloudWatch
+        if: failure()
+        run: |
+          # Put failure metric
+          aws cloudwatch put-metric-data \
+            --namespace "Deployment/$ENVIRONMENT" \
+            --metric-data \
+              MetricName=DeploymentFailure,Value=1,Unit=Count,Dimensions="[{Name=Repository,Value=${{ github.repository }}},{Name=Environment,Value=$ENVIRONMENT}]"
+          
+          # Send SNS notification
+          ERROR_MESSAGE="❌ Deployment failed for $ENVIRONMENT
+          
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
+          Please check the workflow logs for details."
+          
+          aws sns publish \
+            --topic-arn $SNS_TOPIC_ARN \
+            --subject "Deployment Failure - $ENVIRONMENT" \
+            --message "$ERROR_MESSAGE"

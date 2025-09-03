@@ -1,0 +1,8 @@
+- use pipelines for deployments. 
+- deploy database in multi az
+- multi region deployments. 
+- enable db credentials rotation
+- using latest in lambda deployments can disrupt when an function is rolled back to a previous image. 
+- inject sha into lambda and assert on that to check successful deploy 
+- isolate/remove github stack to prevent constant deletion
+- multe az/region deployment of database
