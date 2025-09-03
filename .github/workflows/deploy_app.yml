@@ -11,13 +11,13 @@ permissions:
   contents: read
 
 env:
-  ECR_REPOSITORY: my-app
+  ECR_REPOSITORY: reonic-lambda-app
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     # environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
-    environment:  staging
+    environment: staging
     
     steps:
       - name: Checkout code
