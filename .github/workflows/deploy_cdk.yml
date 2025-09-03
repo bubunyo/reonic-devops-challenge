@@ -37,7 +37,9 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Set env variable
-        run: echo "ENVIRONMENT=${{ job.environment }}" >> $GITHUB_ENV
+        run: |
+          echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+
 
       - name: Deploy CDK
         run: npx cdk deploy --require-approval never -c env=$ENVIRONMENT
