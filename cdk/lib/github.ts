@@ -83,20 +83,6 @@ export class GitHubStack extends cdk.Stack {
       ]
     }));
 
-    // this.deploymentRole.addToPolicy(new iam.PolicyStatement({
-    //   effect: iam.Effect.ALLOW,
-    //   actions: [
-    //     "s3:GetObject",
-    //     "s3:PutObject",
-    //     "s3:ListBucket"
-    //   ],
-    //   resources: [
-    //     `arn:aws:s3:::cdk-hnb659fds-assets-${this.account}-${this.region}`,
-    //     `arn:aws:s3:::cdk-hnb659fds-assets-${this.account}-${this.region}/*`
-    //   ]
-    // }));
-
-
     // SNS topic for deployment notifications
     this.alarmTopic = new sns.Topic(this, 'DeploymentAlarmTopic', {
       displayName: `${props.environment} Deployment Notifications`

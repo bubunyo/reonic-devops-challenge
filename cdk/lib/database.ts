@@ -74,7 +74,6 @@ export class DatabaseStack extends cdk.Stack {
       description: 'Subnet group for RDS in isolated subnets',
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
-        availabilityZones: [props.vpc.isolatedSubnets[0].availabilityZone], // Single AZ
       },
     });
 
@@ -104,21 +103,5 @@ export class DatabaseStack extends cdk.Stack {
       targetId: this.database.instanceIdentifier,
       targetType: 'AWS::RDS::DBInstance',
     });
-
-    // // Outputs
-    // new cdk.CfnOutput(this, 'DatabaseEndpoint', {
-    //   value: this.database.instanceEndpoint.hostname,
-    //   description: 'RDS PostgreSQL endpoint',
-    // });
-
-    // new cdk.CfnOutput(this, 'DatabaseSecretArn', {
-    //   value: this.databaseSecret.secretArn,
-    //   description: 'Database credentials secret ARN',
-    // });
-
-    // new cdk.CfnOutput(this, 'DatabasePort', {
-    //   value: config.port.toString(),
-    //   description: 'Database port',
-    // });
   }
 }
