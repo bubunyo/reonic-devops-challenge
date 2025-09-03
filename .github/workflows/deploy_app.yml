@@ -29,7 +29,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE_ARN }}
+          # role-to-assume: ${{ secrets.AWS_GITHUB_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::841722554816:role/GitHubStack-GitHubActionsRole4F1BBA26-GfKMJS13j47k
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -43,9 +44,9 @@ jobs:
           #   echo "LAMBDA_FUNCTION_NAME=${{ secrets.PROD_LAMBDA_FUNCTION_NAME }}" >> $GITHUB_ENV
           #   echo "SNS_TOPIC_ARN=${{ secrets.PROD_SNS_TOPIC_ARN }}" >> $GITHUB_ENV
           # else
-            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
-            echo "LAMBDA_FUNCTION_NAME=${{ secrets.STAGING_LAMBDA_FUNCTION_NAME }}" >> $GITHUB_ENV
-            echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> $GITHUB_ENV
+          echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+          echo "LAMBDA_FUNCTION_NAME=${{ secrets.STAGING_LAMBDA_FUNCTION_NAME }}" >> $GITHUB_ENV
+          echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> $GITHUB_ENV
           # fi
 
       - name: Build Docker image
