@@ -29,8 +29,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # role-to-assume: ${{ secrets.AWS_GITHUB_ROLE_ARN }}
-          role-to-assume: arn:aws:iam::841722554816:role/GitHubStack-GitHubActionsRole4F1BBA26-GfKMJS13j47k
+          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -53,7 +52,6 @@ jobs:
         id: build
         working-directory: app
         run: |
-          cd app
           IMAGE_TAG=${{ github.sha }}
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG

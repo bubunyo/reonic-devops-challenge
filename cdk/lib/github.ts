@@ -41,9 +41,12 @@ export class GitHubStack extends cdk.Stack {
     // IAM role for GitHub Actions
     const conditions = {
       StringLike: {
-        "token.actions.githubusercontent.com:sub": config.branches.map(
-          (branch) => `repo:${config.owner}/${config.repo}:ref:refs/heads/${branch}`
-        ),
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+        // "token.actions.githubusercontent.com:sub": config.branches.map(
+        //   (branch) => `repo:${config.owner}/${config.repo}:ref:refs/heads/${branch}`
+        // ),
+
+        "token.actions.githubusercontent.com:sub": `repo:${config.owner}/${config.repo}:*`
       },
     };
 
@@ -94,13 +97,19 @@ export class GitHubStack extends cdk.Stack {
         'ecr:BatchCheckLayerAvailability',
         'ecr:GetDownloadUrlForLayer',
         'ecr:BatchGetImage',
-        'ecr:GetAuthorizationToken',
         'ecr:PutImage',
         'ecr:InitiateLayerUpload',
         'ecr:UploadLayerPart',
         'ecr:CompleteLayerUpload'
       ],
       resources: [repositoryArn] // GetAuthorizationToken needs * resource
+    }));
+    this.deploymentRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'ecr:GetAuthorizationToken',
+      ],
+      resources: ["*"], // GetAuthorizationToken needs * resource
     }));
   }
 
