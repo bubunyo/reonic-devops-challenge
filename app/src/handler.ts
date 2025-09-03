@@ -21,7 +21,7 @@ async function getDatabaseConfig(): Promise<DatabaseConfig> {
     };
   }
 
-  // If environment variables are not set, try to get from Secrets Manager
+  // If environment variables are not set, try to get from SecretsManager
   const secretName = process.env.DB_SECRET_NAME;
   if (!secretName) {
     throw new Error('Database credentials not found in environment variables and no DB_SECRET_NAME specified. Please set DB_HOST, DB_USER, and DB_PASSWORD, or set DB_SECRET_NAME for Secrets Manager.');
@@ -68,8 +68,15 @@ export const handler = async (event: any) => {
     // Get database configuration
     const dbConfig = await getDatabaseConfig();
 
+    console.log("Db config", dbConfig)
+
     // Create database client
-    client = new Client(dbConfig);
+    client = new Client({
+      ...dbConfig,
+      ssl: {
+        rejectUnauthorized: false // Required for RDS - certificate not available in Lambda
+      }
+    });
     await client.connect();
 
     // Initialize database table

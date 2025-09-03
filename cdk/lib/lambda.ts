@@ -6,8 +6,10 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import * as ecr from "aws-cdk-lib/aws-ecr";
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 
 export interface LambdaConfig {
+  functionName?: string;
   memorySize: number;
   timeout: cdk.Duration;
   reservedConcurrentExecutions?: number;
@@ -16,15 +18,14 @@ export interface LambdaConfig {
 
 export const DEFAULT_LAMBDA_CONFIG: LambdaConfig = {
   memorySize: 512,
-  timeout: cdk.Duration.seconds(30),
+  timeout: cdk.Duration.seconds(60),
   reservedConcurrentExecutions: undefined,
   repoTag: "latest"
 };
 
 export interface LambdaStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
-  database: rds.DatabaseInstance;
-  databaseSecret: secretsmanager.Secret;
+  dbSecretArn: string;
   repo: ecr.Repository;
   lambdaConfig?: Partial<LambdaConfig>;
 }
@@ -32,6 +33,7 @@ export interface LambdaStackProps extends cdk.StackProps {
 export class LambdaStack extends cdk.Stack {
   public readonly lambdaFunction: lambda.Function;
   public readonly lambdaSecurityGroup: ec2.SecurityGroup;
+  public readonly functionUrl: lambda.FunctionUrl;
 
   constructor(scope: Construct, id: string, props: LambdaStackProps) {
     super(scope, id, props);
@@ -48,19 +50,9 @@ export class LambdaStack extends cdk.Stack {
       allowAllOutbound: true,
     });
 
-    // Update database security group to allow Lambda access
-    const dbSecurityGroup = props.database.connections.securityGroups[0];
-    dbSecurityGroup.addIngressRule(
-      this.lambdaSecurityGroup,
-      ec2.Port.tcp(5432),
-      'Allow Lambda access to PostgreSQL'
-    );
-
-    // Create Lambda function with Docker image
-    this.lambdaFunction = new lambda.Function(this, 'LambdaFunction', {
-      runtime: lambda.Runtime.FROM_IMAGE,
-      handler: lambda.Handler.FROM_IMAGE,
-      code: lambda.Code.fromEcrImage(props.repo, {
+    this.lambdaFunction = new lambda.DockerImageFunction(this, "LambdaDockerFunc", {
+      functionName: props.lambdaConfig?.functionName,
+      code: lambda.DockerImageCode.fromEcr(props.repo, {
         tagOrDigest: props.lambdaConfig?.repoTag, // from the image URL
       }),
       vpc: props.vpc,
@@ -72,12 +64,32 @@ export class LambdaStack extends cdk.Stack {
       timeout: config.timeout,
       reservedConcurrentExecutions: config.reservedConcurrentExecutions,
       environment: {
-        DB_SECRET_NAME: props.databaseSecret.secretArn,
+        DB_SECRET_NAME: props.dbSecretArn,
       },
     });
 
+    this.functionUrl = this.lambdaFunction.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.AWS_IAM,
+    })
+
+    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(this, 'DbSecret', props.dbSecretArn);
+
     // Grant Lambda permission to read database secret
-    props.databaseSecret.grantRead(this.lambdaFunction);
+    dbSecret.grantRead(this.lambdaFunction);
+
+    // API Gateway -> Lambda integration
+    const apiGateway = new apigateway.LambdaRestApi(this, 'Api', {
+      handler: this.lambdaFunction,
+    });
+
+    // Grant API Gateway permission
+    this.lambdaFunction.addPermission('ApiGatewayInvoke', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      action: 'lambda:InvokeFunction',
+      sourceArn: `${apiGateway.arnForExecuteApi()}/*/*`,
+    });
+
+
 
     // Outputs
     new cdk.CfnOutput(this, 'LambdaFunctionArn', {
@@ -85,9 +97,14 @@ export class LambdaStack extends cdk.Stack {
       description: 'Lambda function ARN',
     });
 
-    new cdk.CfnOutput(this, 'LambdaFunctionName', {
-      value: this.lambdaFunction.functionName,
-      description: 'Lambda function name',
+    new cdk.CfnOutput(this, 'LambdaFunctionUrl', {
+      value: this.functionUrl.url,
+      description: 'Lambda function Url',
+    });
+
+    new cdk.CfnOutput(this, 'ApiGatewayUrl', {
+      value: apiGateway.url,
+      description: 'Api Gateway Endpoint',
     });
   }
 }

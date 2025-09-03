@@ -42,11 +42,7 @@ export class GitHubStack extends cdk.Stack {
     const conditions = {
       StringLike: {
         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-        // "token.actions.githubusercontent.com:sub": config.branches.map(
-        //   (branch) => `repo:${config.owner}/${config.repo}:ref:refs/heads/${branch}`
-        // ),
-
-        "token.actions.githubusercontent.com:sub": `repo:${config.owner}/${config.repo}:*`
+        "token.actions.githubusercontent.com:sub": `repo:${config.owner}/${config.repo}:*` // Fix branch wild cards
       },
     };
 
@@ -57,15 +53,41 @@ export class GitHubStack extends cdk.Stack {
     });
 
     // Base permissions for deployment workflows
+    // this.deploymentRole.addToPolicy(new iam.PolicyStatement({
+    //   effect: iam.Effect.ALLOW,
+    //   actions: [
+    //     'cloudwatch:PutMetricData',
+    //     'logs:CreateLogGroup',
+    //     'logs:CreateLogStream',
+    //     'logs:PutLogEvents'
+    //   ],
+    //   resources: ['*']
+    // }));
+
+    // Scoped CloudWatch permissions
+    this.deploymentRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['cloudwatch:PutMetricData'],
+      resources: ['*'], // CloudWatch metrics require * resource
+      conditions: {
+        StringLike: {
+          'cloudwatch:namespace': 'Deployment/*'
+        }
+      }
+    }));
+
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
-        'cloudwatch:PutMetricData',
+        // 'cloudwatch:PutMetricData',
         'logs:CreateLogGroup',
         'logs:CreateLogStream',
         'logs:PutLogEvents'
       ],
-      resources: ['*']
+      resources: [
+        `arn:aws:logs:${this.region}:${this.account}:log-group:/aws/lambda/*`,
+        `arn:aws:logs:${this.region}:${this.account}:log-group:/aws/apigateway/*`
+      ]
     }));
 
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
@@ -79,7 +101,9 @@ export class GitHubStack extends cdk.Stack {
       effect: iam.Effect.ALLOW,
       actions: ["sts:AssumeRole",],
       resources: [
-        `arn:aws:iam::${this.account}:role/cdk-hnb659fds-*`,
+        // `arn:aws:iam::${this.account}:role/cdk-hnb659fds-*`,
+        `arn:aws:iam::${this.account}:role/cdk-hnb659fds-deploy-role-${this.account}-${this.region}`,
+        `arn:aws:iam::${this.account}:role/cdk-hnb659fds-file-publishing-role-${this.account}-${this.region}`
       ]
     }));
 
@@ -126,10 +150,7 @@ export class GitHubStack extends cdk.Stack {
       ],
       resources: ["*"], // GetAuthorizationToken needs * resource
     }));
-  }
 
-  // Helper method to grant Lambda update permissions
-  public grantLambdaUpdateAccess(lambdaArn: string): void {
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
@@ -138,7 +159,7 @@ export class GitHubStack extends cdk.Stack {
         'lambda:GetFunctionConfiguration',
         'lambda:InvokeFunction'
       ],
-      resources: [lambdaArn]
+      resources: [`arn:aws:lambda:${this.region}:${this.account}:function:*__reonic-lambda-app`]
     }));
   }
 }

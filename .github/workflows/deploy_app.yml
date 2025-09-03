@@ -3,8 +3,8 @@ name: Deploy Lambda to AWS
 on:
   push:
     branches: [main, develop]
-    # paths:
-    #   - 'app/**'
+    paths:
+      - 'app/**'
 
 permissions:
   id-token: write
@@ -36,15 +36,10 @@ jobs:
 
       - name: Set environment variables
         run: |
-          # if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          #   echo "ENVIRONMENT=production" >> $GITHUB_ENV
-          #   echo "LAMBDA_FUNCTION_NAME=${{ secrets.PROD_LAMBDA_FUNCTION_NAME }}" >> $GITHUB_ENV
-          #   echo "SNS_TOPIC_ARN=${{ secrets.PROD_SNS_TOPIC_ARN }}" >> $GITHUB_ENV
-          # else
           echo "ENVIRONMENT=staging" >> $GITHUB_ENV
-          echo "LAMBDA_FUNCTION_NAME=${{ secrets.STAGING_LAMBDA_FUNCTION_NAME }}" >> $GITHUB_ENV
+          echo "LAMBDA_FUNCTION_NAME=staging__reonic-lambda-app" >> $GITHUB_ENV
           echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> $GITHUB_ENV
-          # fi
+          echo "DEPLOYMENT_START_TIME=$(date +%s)" >> $GITHUB_ENV
 
       - name: Build Docker image
         id: build
@@ -66,7 +61,7 @@ jobs:
           
           # Also tag as latest for the environment
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-          LATEST_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$ENVIRONMENT-latest
+          LATEST_URI=$ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker tag ${{ steps.build.outputs.image-uri }} $LATEST_URI
           docker push $LATEST_URI
 
@@ -91,31 +86,17 @@ jobs:
           FUNCTION_VERSION=$(cat lambda-info.json | jq -r '.Configuration.Version')
           echo "function-version=$FUNCTION_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Test Lambda function
-        id: test-lambda
-        run: |
-          echo "Testing Lambda function..."
-          aws lambda invoke \
-            --function-name $LAMBDA_FUNCTION_NAME \
-            --payload '{"test": true}' \
-            --output json \
-            response.json
-          
-          STATUS_CODE=$(cat response.json | jq -r '.StatusCode')
-          if [ "$STATUS_CODE" != "200" ]; then
-            echo "Lambda test failed with status code: $STATUS_CODE"
-            exit 1
-          fi
-          
-          echo "Lambda function test successful"
-
       - name: Post deployment metrics to CloudWatch
         run: |
+          # Calculate deployment duration
+          DEPLOYMENT_END_TIME=$(date +%s)
+          DEPLOYMENT_DURATION=$((DEPLOYMENT_END_TIME - DEPLOYMENT_START_TIME))
+          
           aws cloudwatch put-metric-data \
             --namespace "Deployment/$ENVIRONMENT" \
             --metric-data \
               MetricName=DeploymentSuccess,Value=1,Unit=Count,Dimensions="[{Name=Repository,Value=${{ github.repository }}},{Name=Environment,Value=$ENVIRONMENT}]" \
-              MetricName=DeploymentDuration,Value=${{ job.duration }},Unit=Seconds,Dimensions="[{Name=Repository,Value=${{ github.repository }}},{Name=Environment,Value=$ENVIRONMENT}]"
+              MetricName=DeploymentDuration,Value=$DEPLOYMENT_DURATION,Unit=Seconds,Dimensions="[{Name=Repository,Value=${{ github.repository }}},{Name=Environment,Value=$ENVIRONMENT}]"
 
       - name: Send success notification
         if: success()

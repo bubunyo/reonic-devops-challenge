@@ -48,15 +48,18 @@ const databaseStack = new DatabaseStack(envScope, "MainPgDb", {
 
 databaseStack.addDependency(vpcStack);
 
-// const lambdaStack = new LambdaStack(envScope, "LambdaStack", {
-//   vpc: vpcStack.vpc,
-//   database: databaseStack.database,
-//   databaseSecret: databaseStack.databaseSecret,
-//   repo: imageRepoStack.repo,
-// })
+const lambdaStack = new LambdaStack(envScope, "LambdaStack", {
+  vpc: vpcStack.vpc,
+  dbSecretArn: databaseStack.databaseSecret.secretArn,
+  repo: imageRepoStack.repo,
+  lambdaConfig: {
+    functionName: `${env}__reonic-lambda-app`
+  }
+})
 
-// lambdaStack.addDependency(vpcStack);
-// lambdaStack.addDependency(databaseStack);
-// lambdaStack.addDependency(imageRepoStack);
+lambdaStack.addDependency(vpcStack);
+lambdaStack.addDependency(databaseStack);
+lambdaStack.addDependency(imageRepoStack);
 
-// githubStack.grantLambdaUpdateAccess(lambdaStack.lambdaFunction.functionArn)
+// Note: Cannot use security group reference due to circular dependency
+// databaseStack.allowConnectionsFromSecurityGroup(lambdaStack.lambdaSecurityGroup);

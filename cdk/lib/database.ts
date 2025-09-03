@@ -21,7 +21,7 @@ export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
   databaseName: 'postgres',
   port: 5432,
   backupRetentionDays: 3,
-  deletionProtection: true
+  deletionProtection: false
 };
 
 export interface DatabaseStackProps extends cdk.StackProps {
@@ -30,13 +30,16 @@ export interface DatabaseStackProps extends cdk.StackProps {
 }
 
 export class DatabaseStack extends cdk.Stack {
+  private readonly config: DatabaseConfig;
+
   public readonly database: rds.DatabaseInstance;
   public readonly databaseSecret: secretsmanager.Secret;
+
 
   constructor(scope: Construct, id: string, props: DatabaseStackProps) {
     super(scope, id, props);
 
-    const config: DatabaseConfig = {
+    this.config = {
       ...DEFAULT_DATABASE_CONFIG,
       ...props.databaseConfig
     };
@@ -59,14 +62,20 @@ export class DatabaseStack extends cdk.Stack {
       allowAllOutbound: false,
     });
 
-    // Allow inbound connections from private subnets only
-    props.vpc.privateSubnets.forEach((subnet, index) => {
+    // Allow inbound connections from private subnets with egress (app tier)
+    // Note: Using subnet CIDRs instead of security group reference to avoid circular dependency
+    props.vpc.selectSubnets({
+      subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS
+    }).subnets.forEach((subnet, index) => {
       dbSecurityGroup.addIngressRule(
         ec2.Peer.ipv4(subnet.ipv4CidrBlock),
-        ec2.Port.tcp(config.port),
-        `Allow PostgreSQL from private subnet ${index + 1}`
+        ec2.Port.tcp(this.config.port),
+        `Allow PostgreSQL from app subnet ${index + 1}`
       );
     });
+
+    // Preferred: Security group reference method (causes circular dependency)
+    // Use allowConnectionsFromSecurityGroup method instead when possible
 
     // Create subnet group for isolated subnets
     const subnetGroup = new rds.SubnetGroup(this, 'DatabaseSubnetGroup', {
@@ -78,30 +87,41 @@ export class DatabaseStack extends cdk.Stack {
     });
 
     // Create RDS PostgreSQL instance
-    this.database = new rds.DatabaseInstance(this, 'PostgreSQLInstance', {
+    this.database = new rds.DatabaseInstance(this, 'PgInstance', {
       engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_15,
+        version: rds.PostgresEngineVersion.VER_17,
       }),
-      instanceType: ec2.InstanceType.of(config.instanceClass, config.instanceSize),
+      instanceType: ec2.InstanceType.of(this.config.instanceClass, this.config.instanceSize),
       vpc: props.vpc,
       subnetGroup,
       securityGroups: [dbSecurityGroup],
       credentials: rds.Credentials.fromSecret(this.databaseSecret),
-      databaseName: config.databaseName,
-      port: config.port,
-      allocatedStorage: config.allocatedStorage,
+      databaseName: this.config.databaseName,
+      port: this.config.port,
+      allocatedStorage: this.config.allocatedStorage,
       storageType: rds.StorageType.GP2,
-      backupRetention: cdk.Duration.days(config.backupRetentionDays),
-      deletionProtection: config.deletionProtection,
+      backupRetention: cdk.Duration.days(this.config.backupRetentionDays),
+      deletionProtection: this.config.deletionProtection,
       multiAz: false, // Single AZ as requested
       autoMinorVersionUpgrade: true,
       storageEncrypted: true,
     });
+  }
 
-    new secretsmanager.CfnSecretTargetAttachment(this, 'DatabaseSecretAttachment', {
-      secretId: this.databaseSecret.secretArn,
-      targetId: this.database.instanceIdentifier,
-      targetType: 'AWS::RDS::DBInstance',
-    });
+  // public allowConnectionsFrom(securityGroup: ec2.ISecurityGroup,) {
+  //   this.database.connections.allowFrom(securityGroup, ec2.Port.tcp(this.config.port), 'Allow access from Lambda');
+  // }
+
+  // New method to allow connections from specific security group
+  public allowConnectionsFromSecurityGroup(securityGroup: ec2.ISecurityGroup): void {
+    // Get the database security group and add specific rule
+    const dbSecurityGroups = this.database.connections.securityGroups;
+    if (dbSecurityGroups.length > 0) {
+      dbSecurityGroups[0].addIngressRule(
+        securityGroup,
+        ec2.Port.tcp(this.config.port),
+        'Allow PostgreSQL from Lambda security group'
+      );
+    }
   }
 }
