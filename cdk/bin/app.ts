@@ -45,6 +45,7 @@ const vpcStack = new VpcStack(envScope, "MainVpcStack", {
 const databaseStack = new DatabaseStack(envScope, "MainPgDb", {
   vpc: vpcStack.vpc,
 })
+
 databaseStack.addDependency(vpcStack);
 
 // const lambdaStack = new LambdaStack(envScope, "LambdaStack", {
