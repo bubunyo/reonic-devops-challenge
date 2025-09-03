@@ -1,4 +1,4 @@
-FROM public.ecr.aws/lambda/nodejs:20 as builder
+FROM public.ecr.aws/lambda/nodejs:20 AS builder
 
 # Copy package files
 COPY package*.json ./
