@@ -98,10 +98,10 @@ export class DatabaseStack extends cdk.Stack {
       storageEncrypted: true,
     });
 
-    new secretsmanager.CfnSecretTargetAttachment(this, 'DatabaseSecretAttachment', {
-      secretId: this.databaseSecret.secretArn,
-      targetId: this.database.instanceIdentifier,
-      targetType: 'AWS::RDS::DBInstance',
-    });
+    // new secretsmanager.CfnSecretTargetAttachment(this, 'DatabaseSecretAttachment', {
+    //   secretId: this.databaseSecret.secretArn,
+    //   targetId: this.database.instanceIdentifier,
+    //   targetType: 'AWS::RDS::DBInstance',
+    // });
   }
 }
