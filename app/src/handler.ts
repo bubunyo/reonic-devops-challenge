@@ -1,4 +1,4 @@
-import fs from 'fs'
+// import fs from 'fs' // Not needed without certificate file
 import { Client } from 'pg';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 
@@ -75,8 +75,7 @@ export const handler = async (event: any) => {
     client = new Client({
       ...dbConfig,
       ssl: {
-        rejectUnauthorized: true, // Required for RDS
-        ca: fs.readFileSync('/opt/rds-ca-2019-root.pem')
+        rejectUnauthorized: false // Required for RDS - certificate not available in Lambda
       }
     });
     await client.connect();

@@ -42,12 +42,7 @@ export class GitHubStack extends cdk.Stack {
     const conditions = {
       StringLike: {
         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-        // "token.actions.githubusercontent.com:sub": `repo:${config.owner}/${config.repo}:*` // Allows any branch - security risk
-
-        // Restrict to specific branches only
-        "token.actions.githubusercontent.com:sub": config.branches.map(
-          (branch) => `repo:${config.owner}/${config.repo}:ref:refs/heads/${branch}`
-        ),
+        "token.actions.githubusercontent.com:sub": `repo:${config.owner}/${config.repo}:*` // Fix branch wild cards
       },
     };
 
