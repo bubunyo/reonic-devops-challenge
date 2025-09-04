@@ -71,7 +71,7 @@ export class GitHubStack extends cdk.Stack {
       resources: ['*'], // CloudWatch metrics require * resource
       conditions: {
         StringEquals: {
-          'cloudwatch:namespace': ['Deployment/staging', 'Deployment/production']
+          'cloudwatch:namespace': ['Deployment/*']
         }
       }
     }));
@@ -79,6 +79,7 @@ export class GitHubStack extends cdk.Stack {
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
+        // 'cloudwatch:PutMetricData',
         'logs:CreateLogGroup',
         'logs:CreateLogStream',
         'logs:PutLogEvents'

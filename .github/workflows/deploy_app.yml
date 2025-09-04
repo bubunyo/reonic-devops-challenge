@@ -39,6 +39,7 @@ jobs:
           echo "ENVIRONMENT=staging" >> $GITHUB_ENV
           echo "LAMBDA_FUNCTION_NAME=staging__reonic-lambda-app" >> $GITHUB_ENV
           echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> $GITHUB_ENV
+          echo "DEPLOYMENT_START_TIME=$(date +%s)" >> $GITHUB_ENV
 
       - name: Build Docker image
         id: build
@@ -87,11 +88,15 @@ jobs:
 
       - name: Post deployment metrics to CloudWatch
         run: |
+          # Calculate deployment duration
+          DEPLOYMENT_END_TIME=$(date +%s)
+          DEPLOYMENT_DURATION=$((DEPLOYMENT_END_TIME - DEPLOYMENT_START_TIME))
+          
           aws cloudwatch put-metric-data \
             --namespace "Deployment/$ENVIRONMENT" \
             --metric-data \
               MetricName=DeploymentSuccess,Value=1,Unit=Count,Dimensions="[{Name=Repository,Value=${{ github.repository }}},{Name=Environment,Value=$ENVIRONMENT}]" \
-              MetricName=DeploymentDuration,Value=${{ job.duration }},Unit=Seconds,Dimensions="[{Name=Repository,Value=${{ github.repository }}},{Name=Environment,Value=$ENVIRONMENT}]"
+              MetricName=DeploymentDuration,Value=$DEPLOYMENT_DURATION,Unit=Seconds,Dimensions="[{Name=Repository,Value=${{ github.repository }}},{Name=Environment,Value=$ENVIRONMENT}]"
 
       - name: Send success notification
         if: success()
