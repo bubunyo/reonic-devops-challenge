@@ -71,7 +71,12 @@ export const handler = async (event: any) => {
     console.log("Db config", dbConfig)
 
     // Create database client
-    client = new Client(dbConfig);
+    client = new Client({
+      ...dbConfig,
+      ssl: {
+        rejectUnauthorized: false // Required for RDS
+      }
+    });
     await client.connect();
 
     // Initialize database table
