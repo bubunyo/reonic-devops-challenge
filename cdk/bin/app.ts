@@ -60,3 +60,6 @@ const lambdaStack = new LambdaStack(envScope, "LambdaStack", {
 lambdaStack.addDependency(vpcStack);
 lambdaStack.addDependency(databaseStack);
 lambdaStack.addDependency(imageRepoStack);
+
+// Note: Cannot use security group reference due to circular dependency
+// databaseStack.allowConnectionsFromSecurityGroup(lambdaStack.lambdaSecurityGroup);

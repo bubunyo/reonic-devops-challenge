@@ -63,6 +63,7 @@ export class DatabaseStack extends cdk.Stack {
     });
 
     // Allow inbound connections from private subnets with egress (app tier)
+    // Note: Using subnet CIDRs instead of security group reference to avoid circular dependency
     props.vpc.selectSubnets({
       subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS
     }).subnets.forEach((subnet, index) => {
@@ -72,6 +73,9 @@ export class DatabaseStack extends cdk.Stack {
         `Allow PostgreSQL from app subnet ${index + 1}`
       );
     });
+
+    // Preferred: Security group reference method (causes circular dependency)
+    // Use allowConnectionsFromSecurityGroup method instead when possible
 
     // Create subnet group for isolated subnets
     const subnetGroup = new rds.SubnetGroup(this, 'DatabaseSubnetGroup', {
@@ -104,7 +108,20 @@ export class DatabaseStack extends cdk.Stack {
     });
   }
 
-  public allowConnectionsFrom(securityGroup: ec2.ISecurityGroup,) {
-    this.database.connections.allowFrom(securityGroup, ec2.Port.tcp(this.config.port), 'Allow access from Lambda');
+  // public allowConnectionsFrom(securityGroup: ec2.ISecurityGroup,) {
+  //   this.database.connections.allowFrom(securityGroup, ec2.Port.tcp(this.config.port), 'Allow access from Lambda');
+  // }
+
+  // New method to allow connections from specific security group
+  public allowConnectionsFromSecurityGroup(securityGroup: ec2.ISecurityGroup): void {
+    // Get the database security group and add specific rule
+    const dbSecurityGroups = this.database.connections.securityGroups;
+    if (dbSecurityGroups.length > 0) {
+      dbSecurityGroups[0].addIngressRule(
+        securityGroup,
+        ec2.Port.tcp(this.config.port),
+        'Allow PostgreSQL from Lambda security group'
+      );
+    }
   }
 }
