@@ -126,10 +126,7 @@ export class GitHubStack extends cdk.Stack {
       ],
       resources: ["*"], // GetAuthorizationToken needs * resource
     }));
-  }
 
-  // Helper method to grant Lambda update permissions
-  public grantLambdaUpdateAccess(lambdaArn: string): void {
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
@@ -138,7 +135,7 @@ export class GitHubStack extends cdk.Stack {
         'lambda:GetFunctionConfiguration',
         'lambda:InvokeFunction'
       ],
-      resources: [lambdaArn]
+      resources: [`arn:aws:lambda:${this.region}:${this.account}:function:*__reonic-lambda-app`]
     }));
   }
 }

@@ -58,7 +58,5 @@ const lambdaStack = new LambdaStack(envScope, "LambdaStack", {
 })
 
 lambdaStack.addDependency(vpcStack);
-// databaseStack.allowConnectionsFrom(lambdaStack.lambdaSecurityGroup);
+lambdaStack.addDependency(databaseStack);
 lambdaStack.addDependency(imageRepoStack);
-
-githubStack.grantLambdaUpdateAccess(lambdaStack.lambdaFunction.functionArn)

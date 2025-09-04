@@ -62,12 +62,14 @@ export class DatabaseStack extends cdk.Stack {
       allowAllOutbound: false,
     });
 
-    // Allow inbound connections from private subnets only
-    props.vpc.privateSubnets.forEach((subnet, index) => {
+    // Allow inbound connections from private subnets with egress (app tier)
+    props.vpc.selectSubnets({
+      subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS
+    }).subnets.forEach((subnet, index) => {
       dbSecurityGroup.addIngressRule(
         ec2.Peer.ipv4(subnet.ipv4CidrBlock),
         ec2.Port.tcp(this.config.port),
-        `Allow PostgreSQL from private subnet ${index + 1}`
+        `Allow PostgreSQL from app subnet ${index + 1}`
       );
     });
 

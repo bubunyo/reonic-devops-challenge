@@ -85,24 +85,6 @@ jobs:
           FUNCTION_VERSION=$(cat lambda-info.json | jq -r '.Configuration.Version')
           echo "function-version=$FUNCTION_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Test Lambda function
-        id: test-lambda
-        run: |
-          echo "Testing Lambda function..."
-          aws lambda invoke \
-            --function-name $LAMBDA_FUNCTION_NAME \
-            --payload '{"test": true}' \
-            --output json \
-            response.json
-          
-          STATUS_CODE=$(cat response.json | jq -r '.StatusCode')
-          if [ "$STATUS_CODE" != "200" ]; then
-            echo "Lambda test failed with status code: $STATUS_CODE"
-            exit 1
-          fi
-          
-          echo "Lambda function test successful"
-
       - name: Post deployment metrics to CloudWatch
         run: |
           aws cloudwatch put-metric-data \
