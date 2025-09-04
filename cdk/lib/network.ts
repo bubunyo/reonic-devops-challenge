@@ -49,5 +49,14 @@ export class VpcStack extends cdk.Stack {
       ),
       natGateways: props.vpcConfig.natGateways, // No NAT gateways. 
     });
+
+    // Create network connectivity to secrets manager
+    new ec2.InterfaceVpcEndpoint(this, 'SecretsManagerEndpoint', {
+      vpc: this.vpc,
+      service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+      subnets: {
+        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS
+      }
+    });
   }
 }
