@@ -18,7 +18,7 @@ export interface LambdaConfig {
 
 export const DEFAULT_LAMBDA_CONFIG: LambdaConfig = {
   memorySize: 512,
-  timeout: cdk.Duration.seconds(30),
+  timeout: cdk.Duration.seconds(60),
   reservedConcurrentExecutions: undefined,
   repoTag: "latest"
 };
@@ -69,7 +69,7 @@ export class LambdaStack extends cdk.Stack {
     });
 
     this.functionUrl = this.lambdaFunction.addFunctionUrl({
-      authType: lambda.FunctionUrlAuthType.NONE, // will change for api gateway
+      authType: lambda.FunctionUrlAuthType.AWS_IAM, // will change for api gateway
     })
 
     const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(this, 'DbSecret', props.dbSecretArn);
@@ -81,6 +81,15 @@ export class LambdaStack extends cdk.Stack {
     const apiGateway = new apigateway.LambdaRestApi(this, 'Api', {
       handler: this.lambdaFunction,
     });
+
+    // Grant API Gateway permission
+    this.lambdaFunction.addPermission('ApiGatewayInvoke', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      action: 'lambda:InvokeFunction',
+      sourceArn: `${apiGateway.arnForExecuteApi()}/*/*`,
+    });
+
+
 
     // Outputs
     new cdk.CfnOutput(this, 'LambdaFunctionArn', {
