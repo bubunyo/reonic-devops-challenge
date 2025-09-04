@@ -6,6 +6,7 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import * as ecr from "aws-cdk-lib/aws-ecr";
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 
 export interface LambdaConfig {
   functionName?: string;
@@ -32,6 +33,7 @@ export interface LambdaStackProps extends cdk.StackProps {
 export class LambdaStack extends cdk.Stack {
   public readonly lambdaFunction: lambda.Function;
   public readonly lambdaSecurityGroup: ec2.SecurityGroup;
+  public readonly functionUrl: lambda.FunctionUrl;
 
   constructor(scope: Construct, id: string, props: LambdaStackProps) {
     super(scope, id, props);
@@ -48,12 +50,9 @@ export class LambdaStack extends cdk.Stack {
       allowAllOutbound: true,
     });
 
-    // Create Lambda function with Docker image
-    this.lambdaFunction = new lambda.Function(this, 'LambdaFunction', {
+    this.lambdaFunction = new lambda.DockerImageFunction(this, "LambdaDockerFunc", {
       functionName: props.lambdaConfig?.functionName,
-      runtime: lambda.Runtime.FROM_IMAGE,
-      handler: lambda.Handler.FROM_IMAGE,
-      code: lambda.Code.fromEcrImage(props.repo, {
+      code: lambda.DockerImageCode.fromEcr(props.repo, {
         tagOrDigest: props.lambdaConfig?.repoTag, // from the image URL
       }),
       vpc: props.vpc,
@@ -69,10 +68,19 @@ export class LambdaStack extends cdk.Stack {
       },
     });
 
+    this.functionUrl = this.lambdaFunction.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE, // will change for api gateway
+    })
+
     const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(this, 'DbSecret', props.dbSecretArn);
 
     // Grant Lambda permission to read database secret
     dbSecret.grantRead(this.lambdaFunction);
+
+    // API Gateway -> Lambda integration
+    const apiGateway = new apigateway.LambdaRestApi(this, 'Api', {
+      handler: this.lambdaFunction,
+    });
 
     // Outputs
     new cdk.CfnOutput(this, 'LambdaFunctionArn', {
@@ -80,9 +88,14 @@ export class LambdaStack extends cdk.Stack {
       description: 'Lambda function ARN',
     });
 
-    new cdk.CfnOutput(this, 'LambdaFunctionName', {
-      value: this.lambdaFunction.functionName,
-      description: 'Lambda function name',
+    new cdk.CfnOutput(this, 'LambdaFunctionUrl', {
+      value: this.functionUrl.url,
+      description: 'Lambda function Url',
+    });
+
+    new cdk.CfnOutput(this, 'ApiGatewayUrl', {
+      value: apiGateway.url,
+      description: 'Api Gateway Endpoint',
     });
   }
 }

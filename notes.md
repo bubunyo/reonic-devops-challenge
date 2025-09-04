@@ -8,3 +8,5 @@
 - multe az/region deployment of database
 - cache for github actions image creation
 - prevent staging and production deploy from laptop
+- add drift notification
+- add change log and audit trail
