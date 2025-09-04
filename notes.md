@@ -10,3 +10,4 @@
 - prevent staging and production deploy from laptop
 - add drift notification
 - add change log and audit trail
+- use single dedicated gateway

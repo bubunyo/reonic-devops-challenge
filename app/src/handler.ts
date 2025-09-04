@@ -68,6 +68,8 @@ export const handler = async (event: any) => {
     // Get database configuration
     const dbConfig = await getDatabaseConfig();
 
+    console.log("Db config", dbConfig)
+
     // Create database client
     client = new Client(dbConfig);
     await client.connect();
