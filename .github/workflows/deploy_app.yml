@@ -3,8 +3,8 @@ name: Deploy Lambda to AWS
 on:
   push:
     branches: [main, develop]
-    # paths:
-    #   - 'app/**'
+    paths:
+      - 'app/**'
 
 permissions:
   id-token: write
@@ -42,7 +42,7 @@ jobs:
           #   echo "SNS_TOPIC_ARN=${{ secrets.PROD_SNS_TOPIC_ARN }}" >> $GITHUB_ENV
           # else
           echo "ENVIRONMENT=staging" >> $GITHUB_ENV
-          echo "LAMBDA_FUNCTION_NAME=${{ secrets.STAGING_LAMBDA_FUNCTION_NAME }}" >> $GITHUB_ENV
+          echo "LAMBDA_FUNCTION_NAME=staging__reonic-lambda-app" >> $GITHUB_ENV
           echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> $GITHUB_ENV
           # fi
 

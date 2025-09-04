@@ -7,3 +7,4 @@
 - isolate/remove github stack to prevent constant deletion
 - multe az/region deployment of database
 - cache for github actions image creation
+- prevent staging and production deploy from laptop

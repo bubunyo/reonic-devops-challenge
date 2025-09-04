@@ -30,13 +30,16 @@ export interface DatabaseStackProps extends cdk.StackProps {
 }
 
 export class DatabaseStack extends cdk.Stack {
+  private readonly config: DatabaseConfig;
+
   public readonly database: rds.DatabaseInstance;
   public readonly databaseSecret: secretsmanager.Secret;
+
 
   constructor(scope: Construct, id: string, props: DatabaseStackProps) {
     super(scope, id, props);
 
-    const config: DatabaseConfig = {
+    this.config = {
       ...DEFAULT_DATABASE_CONFIG,
       ...props.databaseConfig
     };
@@ -63,7 +66,7 @@ export class DatabaseStack extends cdk.Stack {
     props.vpc.privateSubnets.forEach((subnet, index) => {
       dbSecurityGroup.addIngressRule(
         ec2.Peer.ipv4(subnet.ipv4CidrBlock),
-        ec2.Port.tcp(config.port),
+        ec2.Port.tcp(this.config.port),
         `Allow PostgreSQL from private subnet ${index + 1}`
       );
     });
@@ -78,21 +81,21 @@ export class DatabaseStack extends cdk.Stack {
     });
 
     // Create RDS PostgreSQL instance
-    this.database = new rds.DatabaseInstance(this, 'PostgreSQLInstance', {
+    this.database = new rds.DatabaseInstance(this, 'PgInstance', {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_17,
       }),
-      instanceType: ec2.InstanceType.of(config.instanceClass, config.instanceSize),
+      instanceType: ec2.InstanceType.of(this.config.instanceClass, this.config.instanceSize),
       vpc: props.vpc,
       subnetGroup,
       securityGroups: [dbSecurityGroup],
       credentials: rds.Credentials.fromSecret(this.databaseSecret),
-      databaseName: config.databaseName,
-      port: config.port,
-      allocatedStorage: config.allocatedStorage,
+      databaseName: this.config.databaseName,
+      port: this.config.port,
+      allocatedStorage: this.config.allocatedStorage,
       storageType: rds.StorageType.GP2,
-      backupRetention: cdk.Duration.days(config.backupRetentionDays),
-      deletionProtection: config.deletionProtection,
+      backupRetention: cdk.Duration.days(this.config.backupRetentionDays),
+      deletionProtection: this.config.deletionProtection,
       multiAz: false, // Single AZ as requested
       autoMinorVersionUpgrade: true,
       storageEncrypted: true,
@@ -100,6 +103,6 @@ export class DatabaseStack extends cdk.Stack {
   }
 
   public allowConnectionsFrom(securityGroup: ec2.ISecurityGroup,) {
-    this.database.connections.allowFrom(securityGroup, ec2.Port.tcp(this.database.instanceEndpoint.port), 'Allow access from Lambda');
+    this.database.connections.allowFrom(securityGroup, ec2.Port.tcp(this.config.port), 'Allow access from Lambda');
   }
 }

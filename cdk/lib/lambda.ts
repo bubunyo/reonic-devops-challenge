@@ -8,6 +8,7 @@ import { Construct } from 'constructs';
 import * as ecr from "aws-cdk-lib/aws-ecr";
 
 export interface LambdaConfig {
+  functionName?: string;
   memorySize: number;
   timeout: cdk.Duration;
   reservedConcurrentExecutions?: number;
@@ -49,6 +50,7 @@ export class LambdaStack extends cdk.Stack {
 
     // Create Lambda function with Docker image
     this.lambdaFunction = new lambda.Function(this, 'LambdaFunction', {
+      functionName: props.lambdaConfig?.functionName,
       runtime: lambda.Runtime.FROM_IMAGE,
       handler: lambda.Handler.FROM_IMAGE,
       code: lambda.Code.fromEcrImage(props.repo, {
