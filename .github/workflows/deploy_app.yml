@@ -36,15 +36,9 @@ jobs:
 
       - name: Set environment variables
         run: |
-          # if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          #   echo "ENVIRONMENT=production" >> $GITHUB_ENV
-          #   echo "LAMBDA_FUNCTION_NAME=${{ secrets.PROD_LAMBDA_FUNCTION_NAME }}" >> $GITHUB_ENV
-          #   echo "SNS_TOPIC_ARN=${{ secrets.PROD_SNS_TOPIC_ARN }}" >> $GITHUB_ENV
-          # else
           echo "ENVIRONMENT=staging" >> $GITHUB_ENV
           echo "LAMBDA_FUNCTION_NAME=staging__reonic-lambda-app" >> $GITHUB_ENV
           echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> $GITHUB_ENV
-          # fi
 
       - name: Build Docker image
         id: build
