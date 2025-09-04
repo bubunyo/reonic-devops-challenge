@@ -70,8 +70,8 @@ export class GitHubStack extends cdk.Stack {
       actions: ['cloudwatch:PutMetricData'],
       resources: ['*'], // CloudWatch metrics require * resource
       conditions: {
-        StringEquals: {
-          'cloudwatch:namespace': ['Deployment/*']
+        StringLike: {
+          'cloudwatch:namespace': 'Deployment/*'
         }
       }
     }));
