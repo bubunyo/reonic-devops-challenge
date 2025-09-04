@@ -1,3 +1,4 @@
+import fs from 'fs'
 import { Client } from 'pg';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 
@@ -74,7 +75,8 @@ export const handler = async (event: any) => {
     client = new Client({
       ...dbConfig,
       ssl: {
-        rejectUnauthorized: false // Required for RDS
+        rejectUnauthorized: true, // Required for RDS
+        ca: fs.readFileSync('/opt/rds-ca-2019-root.pem')
       }
     });
     await client.connect();

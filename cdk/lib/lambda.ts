@@ -69,8 +69,7 @@ export class LambdaStack extends cdk.Stack {
     });
 
     this.functionUrl = this.lambdaFunction.addFunctionUrl({
-      authType: lambda.FunctionUrlAuthType.AWS_IAM, // will change for api gateway
-      // authType: lambda.FunctionUrlAuthType.NONE, // will change for api gateway
+      authType: lambda.FunctionUrlAuthType.AWS_IAM,
     })
 
     const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(this, 'DbSecret', props.dbSecretArn);
