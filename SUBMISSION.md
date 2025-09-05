@@ -16,6 +16,8 @@ Modular CDK architecture with separate constructs for each component:
 - SSL/TLS: Encrypted database connections
 - GitHub OIDC: Token-based authentication instead of long-lived access keys
 
+Caveat: Deploying lambda function could undo a roleback of lambda version currently in production that does not have tag latest.
+
 ### CI/CD
 Dual-pipeline approach:
 - CDK Pipeline: Deploys infrastructure changes (`deploy_cdk.yml`)
@@ -60,9 +62,10 @@ npm run cdk deploy --profile=<aws_sso_profile_name>
 
 
 ## Deployment
-The lambda is currently deployed to an api gateway with the following environment endpoints
-dev: https://7cncrp0zz9.execute-api.eu-north-1.amazonaws.com
-staging: https://9h9f4sm9q5.execute-api.eu-north-1.amazonaws.com
+The lambda function is currently deployed to an api gateway with the following environment endpoints
+
+- dev: https://7cncrp0zz9.execute-api.eu-north-1.amazonaws.com
+- staging: https://9h9f4sm9q5.execute-api.eu-north-1.amazonaws.com
 
 The lambda can be triggered with the following curl request.
 ```bash
@@ -96,14 +99,8 @@ Push to `main` branch triggers automatic deployment:
 1. CDK Stack: Deploys infrastructure changes
 2. Lambda App: Builds container and updates function
 
-### Testing the Solution
+### Checking Logs 
 ```bash
-# Get API Gateway URL from CDK outputs
-aws cloudformation describe-stacks --stack-name devLambdaStackC6933D02
-
-# Test API endpoint
-curl -X POST https://your-api-gateway-url/
-
 # Check CloudWatch logs
 aws logs tail /aws/lambda/dev__reonic-lambda-app --follow --profile=<aws_sso_profile_name>
 aws logs tail /aws/lambda/staging__reonic-lambda-app --follow --profile=<aws_sso_profile_name>
@@ -131,7 +128,8 @@ To configure these:
 
 ## Improvements 
 
-- Enable proper SSL certificate validation with RDS CA bundle
+- Isolated Production/Staging AWS Account: Separate account credentials for environments
+- Lambda Function Image Version Enforcement: Deploy image for lambda function should detect and use current version other than latest
 - Implement branch-based GitHub OIDC restrictions
 - Add WAF protection for API Gateway
 - Enable VPC Flow Logs for network monitoring
@@ -150,12 +148,9 @@ To configure these:
 - Alerting: Implement comprehensive alarm strategy
 - Distributed Tracing: Add AWS X-Ray integration
 - Performance Metrics: Track Lambda cold starts, database connection pooling
-- Separate Production/Staging Account: Separate account credentials for different environments
 - GitHub Stack Separation: Move GitHub OIDC stack to prevent accidental deletion
-- Shared Resources: Create separate stack for cross-environment resources
 - Environment-Specific Configurations: Implement proper environment variable management
 - Connection Pooling: Implement RDS Proxy for Lambda connections
-- Read Replicas: Add read replicas for improved performance
 - Backup Strategy: Implement point-in-time recovery and cross-region backups
 - API Versioning: Implement proper API versioning strategy
 - Rate Limiting: Add API throttling and quotas
