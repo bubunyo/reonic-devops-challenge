@@ -9,14 +9,9 @@ export interface GitHubConfig {
   branches?: string[];
 }
 
-export const DEFAULT_GITHUB_CONFIG = {
-  branches: ['main', 'develop']
-};
-
 export interface GitHubStackProps extends cdk.StackProps {
   githubConfig: GitHubConfig;
   environment: string;
-  component?: string;
 }
 
 export class GitHubStack extends cdk.Stack {
@@ -27,10 +22,7 @@ export class GitHubStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: GitHubStackProps) {
     super(scope, id, props);
 
-    const config = {
-      ...DEFAULT_GITHUB_CONFIG,
-      ...props.githubConfig
-    };
+    const config = props.githubConfig;
 
     // GitHub OIDC Provider
     this.oidcProvider = new iam.OpenIdConnectProvider(this, 'GitHubOIDCProvider', {
@@ -52,26 +44,14 @@ export class GitHubStack extends cdk.Stack {
       maxSessionDuration: cdk.Duration.hours(1),
     });
 
-    // Base permissions for deployment workflows
-    // this.deploymentRole.addToPolicy(new iam.PolicyStatement({
-    //   effect: iam.Effect.ALLOW,
-    //   actions: [
-    //     'cloudwatch:PutMetricData',
-    //     'logs:CreateLogGroup',
-    //     'logs:CreateLogStream',
-    //     'logs:PutLogEvents'
-    //   ],
-    //   resources: ['*']
-    // }));
-
     // Scoped CloudWatch permissions
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['cloudwatch:PutMetricData'],
       resources: ['*'], // CloudWatch metrics require * resource
       conditions: {
-        StringEquals: {
-          'cloudwatch:namespace': ['Deployment/*']
+        StringLike: {
+          'cloudwatch:namespace': 'Deployment/*'
         }
       }
     }));
@@ -79,7 +59,6 @@ export class GitHubStack extends cdk.Stack {
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
-        // 'cloudwatch:PutMetricData',
         'logs:CreateLogGroup',
         'logs:CreateLogStream',
         'logs:PutLogEvents'
@@ -115,6 +94,23 @@ export class GitHubStack extends cdk.Stack {
     // Grant SNS publish permission
     this.alarmTopic.grantPublish(this.deploymentRole);
 
+    // Add CloudFormation permissions for CDK diff and deploy operations
+    this.deploymentRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'cloudformation:DescribeStacks',
+        'cloudformation:DescribeStackEvents',
+        'cloudformation:DescribeStackResources', 
+        'cloudformation:DescribeStackResource',
+        'cloudformation:GetTemplate',
+        'cloudformation:ListStackResources',
+        'cloudformation:GetStackPolicy'
+      ],
+      resources: [
+        `arn:aws:cloudformation:${this.region}:${this.account}:stack/*/*`
+      ]
+    }));
+
 
     // Outputs
     new cdk.CfnOutput(this, 'GitHubRoleArn', {
@@ -143,6 +139,7 @@ export class GitHubStack extends cdk.Stack {
       ],
       resources: [repositoryArn] // GetAuthorizationToken needs * resource
     }));
+
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [

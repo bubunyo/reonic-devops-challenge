@@ -1,4 +1,3 @@
-// import fs from 'fs' // Not needed without certificate file
 import { Client } from 'pg';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 

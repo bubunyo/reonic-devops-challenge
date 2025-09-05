@@ -2,25 +2,13 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { Construct } from 'constructs';
 
-const myVpc: VpcConfig = {
-  name: "main_vpc",
-  cidr: "10.0.0.0/16",
-  maxAzs: 3,
-  natGateways: 0,
-  subnets: {
-    frontend: { cidrMask: 24, type: ec2.SubnetType.PUBLIC },
-    app: { cidrMask: 24, type: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-    db: { cidrMask: 24, type: ec2.SubnetType.PRIVATE_ISOLATED },
-  },
-};
-
 export interface SubnetConfig {
   cidrMask: number;
   type: ec2.SubnetType;
 }
 
 export interface VpcConfig {
-  name: string
+  name: string;
   cidr: string;
   maxAzs: number;
   natGateways: number;
@@ -47,7 +35,7 @@ export class VpcStack extends cdk.Stack {
           subnetType: subnet.type,
         })
       ),
-      natGateways: props.vpcConfig.natGateways, // No NAT gateways. 
+      natGateways: props.vpcConfig.natGateways,
     });
 
     // Create network connectivity to secrets manager

@@ -2,7 +2,6 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as rds from 'aws-cdk-lib/aws-rds';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import * as ecr from "aws-cdk-lib/aws-ecr";
@@ -16,18 +15,12 @@ export interface LambdaConfig {
   repoTag: string;
 }
 
-export const DEFAULT_LAMBDA_CONFIG: LambdaConfig = {
-  memorySize: 512,
-  timeout: cdk.Duration.seconds(60),
-  reservedConcurrentExecutions: undefined,
-  repoTag: "latest"
-};
-
 export interface LambdaStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
   dbSecretArn: string;
   repo: ecr.Repository;
-  lambdaConfig?: Partial<LambdaConfig>;
+  lambdaConfig: LambdaConfig;
+  functionName: string;
 }
 
 export class LambdaStack extends cdk.Stack {
@@ -38,10 +31,7 @@ export class LambdaStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: LambdaStackProps) {
     super(scope, id, props);
 
-    const config: LambdaConfig = {
-      ...DEFAULT_LAMBDA_CONFIG,
-      ...props.lambdaConfig
-    };
+    const config = props.lambdaConfig;
 
     // Security group for Lambda
     this.lambdaSecurityGroup = new ec2.SecurityGroup(this, 'LambdaSecurityGroup', {
@@ -51,9 +41,9 @@ export class LambdaStack extends cdk.Stack {
     });
 
     this.lambdaFunction = new lambda.DockerImageFunction(this, "LambdaDockerFunc", {
-      functionName: props.lambdaConfig?.functionName,
+      functionName: props.functionName,
       code: lambda.DockerImageCode.fromEcr(props.repo, {
-        tagOrDigest: props.lambdaConfig?.repoTag, // from the image URL
+        tagOrDigest: config.repoTag,
       }),
       vpc: props.vpc,
       vpcSubnets: {
@@ -88,7 +78,6 @@ export class LambdaStack extends cdk.Stack {
       action: 'lambda:InvokeFunction',
       sourceArn: `${apiGateway.arnForExecuteApi()}/*/*`,
     });
-
 
 
     // Outputs

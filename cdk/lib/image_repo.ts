@@ -19,8 +19,8 @@ export class ImageRepoStack extends cdk.Stack {
     // Create a new ECR repository
     this.repo = new ecr.Repository(this, "ReonicBaseImageRepo", {
       repositoryName: props.imageRepoConfig.repoName,
-      removalPolicy: cdk.RemovalPolicy.RETAIN, // optional, for cleanup
-      imageScanOnPush: true, // optional
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      imageScanOnPush: true,
     });
 
     new cdk.CfnOutput(this, "RepoUri", {

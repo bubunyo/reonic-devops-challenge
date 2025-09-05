@@ -14,35 +14,19 @@ export interface DatabaseConfig {
   deletionProtection: boolean;
 }
 
-export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
-  instanceClass: ec2.InstanceClass.BURSTABLE3,
-  instanceSize: ec2.InstanceSize.MICRO,
-  allocatedStorage: 20,
-  databaseName: 'postgres',
-  port: 5432,
-  backupRetentionDays: 3,
-  deletionProtection: false
-};
-
 export interface DatabaseStackProps extends cdk.StackProps {
   vpc: ec2.Vpc;
-  databaseConfig?: Partial<DatabaseConfig>;
+  databaseConfig: DatabaseConfig;
 }
 
 export class DatabaseStack extends cdk.Stack {
-  private readonly config: DatabaseConfig;
-
   public readonly database: rds.DatabaseInstance;
   public readonly databaseSecret: secretsmanager.Secret;
-
 
   constructor(scope: Construct, id: string, props: DatabaseStackProps) {
     super(scope, id, props);
 
-    this.config = {
-      ...DEFAULT_DATABASE_CONFIG,
-      ...props.databaseConfig
-    };
+    const config = props.databaseConfig;
 
     // Create database credentials secret
     this.databaseSecret = new secretsmanager.Secret(this, 'DatabaseSecret', {
@@ -69,7 +53,7 @@ export class DatabaseStack extends cdk.Stack {
     }).subnets.forEach((subnet, index) => {
       dbSecurityGroup.addIngressRule(
         ec2.Peer.ipv4(subnet.ipv4CidrBlock),
-        ec2.Port.tcp(this.config.port),
+        ec2.Port.tcp(config.port),
         `Allow PostgreSQL from app subnet ${index + 1}`
       );
     });
@@ -91,35 +75,31 @@ export class DatabaseStack extends cdk.Stack {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_17,
       }),
-      instanceType: ec2.InstanceType.of(this.config.instanceClass, this.config.instanceSize),
+      instanceType: ec2.InstanceType.of(config.instanceClass, config.instanceSize),
       vpc: props.vpc,
       subnetGroup,
       securityGroups: [dbSecurityGroup],
       credentials: rds.Credentials.fromSecret(this.databaseSecret),
-      databaseName: this.config.databaseName,
-      port: this.config.port,
-      allocatedStorage: this.config.allocatedStorage,
+      databaseName: config.databaseName,
+      port: config.port,
+      allocatedStorage: config.allocatedStorage,
       storageType: rds.StorageType.GP2,
-      backupRetention: cdk.Duration.days(this.config.backupRetentionDays),
-      deletionProtection: this.config.deletionProtection,
+      backupRetention: cdk.Duration.days(config.backupRetentionDays),
+      deletionProtection: config.deletionProtection,
       multiAz: false, // Single AZ as requested
       autoMinorVersionUpgrade: true,
       storageEncrypted: true,
     });
   }
 
-  // public allowConnectionsFrom(securityGroup: ec2.ISecurityGroup,) {
-  //   this.database.connections.allowFrom(securityGroup, ec2.Port.tcp(this.config.port), 'Allow access from Lambda');
-  // }
-
   // New method to allow connections from specific security group
-  public allowConnectionsFromSecurityGroup(securityGroup: ec2.ISecurityGroup): void {
+  public allowConnectionsFromSecurityGroup(securityGroup: ec2.ISecurityGroup, port: number): void {
     // Get the database security group and add specific rule
     const dbSecurityGroups = this.database.connections.securityGroups;
     if (dbSecurityGroups.length > 0) {
       dbSecurityGroups[0].addIngressRule(
         securityGroup,
-        ec2.Port.tcp(this.config.port),
+        ec2.Port.tcp(port),
         'Allow PostgreSQL from Lambda security group'
       );
     }

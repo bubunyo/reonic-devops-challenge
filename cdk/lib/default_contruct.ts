@@ -8,11 +8,7 @@ export class DefaultConstruct extends Construct {
     super(scope, id);
     this.id = id
 
-    console.log(`###############################################`)
-    console.log(`###############################################`)
-    console.log(`######## Deploying for Environment: ${id}`)
-    console.log(`###############################################`)
-    console.log(`###############################################`)
+    console.log(`######## 🚀 Running Environment: ${id} ########`)
 
     // Default tags for this construct and children
     cdk.Tags.of(this).add("Infra", "ReonicDevOpsStack");
