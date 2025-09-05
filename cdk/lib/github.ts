@@ -9,14 +9,9 @@ export interface GitHubConfig {
   branches?: string[];
 }
 
-export const DEFAULT_GITHUB_CONFIG = {
-  branches: ['main', 'develop']
-};
-
 export interface GitHubStackProps extends cdk.StackProps {
   githubConfig: GitHubConfig;
   environment: string;
-  component?: string;
 }
 
 export class GitHubStack extends cdk.Stack {
@@ -27,10 +22,7 @@ export class GitHubStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: GitHubStackProps) {
     super(scope, id, props);
 
-    const config = {
-      ...DEFAULT_GITHUB_CONFIG,
-      ...props.githubConfig
-    };
+    const config = props.githubConfig;
 
     // GitHub OIDC Provider
     this.oidcProvider = new iam.OpenIdConnectProvider(this, 'GitHubOIDCProvider', {
