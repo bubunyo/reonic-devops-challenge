@@ -1,65 +1,58 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib'
-import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { GitHubStack } from '../lib/github';
-import { DefaultConstruct } from '../lib/contruct';
+import { DefaultConstruct } from '../lib/default_contruct';
 import { ImageRepoStack } from '../lib/image_repo';
 import { LambdaStack } from '../lib/lambda';
 import { VpcStack } from '../lib/network';
 import { DatabaseStack } from '../lib/database';
+import { detectEnvironment, getEnvironmentConfig, getGlobalConfig } from '../lib/configs';
 
 const app = new cdk.App()
 
-const env = app.node.tryGetContext("env") || "dev";
+// Auto-detect environment with validation
+const env = detectEnvironment(app);
+
+// Get configurations
+const globalConfig = getGlobalConfig();
+const envConfig = getEnvironmentConfig(env);
+
 const envScope = new DefaultConstruct(app, env);
 
-// github is on a globalscope
+// GitHub stack (global scope)
 const githubStack = new GitHubStack(app, 'GitHubStack', {
-  githubConfig: {
-    owner: 'bubunyo',
-    repo: 'reonic-devops-challenge'
-  },
+  githubConfig: globalConfig.github,
   environment: 'global'
 });
 
-// add github role arn and region to secrets and environment
-
-const imageRepoStack = new ImageRepoStack(app, 'LambdaAppImageRepoStack', { imageRepoConfig: { repoName: "reonic-lambda-app" } })
+// Image repository stack
+const imageRepoStack = new ImageRepoStack(app, 'LambdaAppImageRepoStack', {
+  imageRepoConfig: globalConfig.imageRepo
+})
 githubStack.grantEcrAccess(imageRepoStack.repo.repositoryArn)
 
-// vpc
+// VPC stack with environment-specific configuration
 const vpcStack = new VpcStack(envScope, "MainVpcStack", {
-  vpcConfig: {
-    name: "main_vpc",
-    cidr: "10.0.0.0/16",
-    maxAzs: 3,
-    natGateways: 0,
-    subnets: {
-      frontend: { cidrMask: 24, type: ec2.SubnetType.PUBLIC },
-      app: { cidrMask: 24, type: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      db: { cidrMask: 24, type: ec2.SubnetType.PRIVATE_ISOLATED },
-    },
-  },
+  vpcConfig: envConfig.vpc
 })
 
+// Database stack with environment-specific configuration
 const databaseStack = new DatabaseStack(envScope, "MainPgDb", {
   vpc: vpcStack.vpc,
+  databaseConfig: envConfig.database
 })
 
 databaseStack.addDependency(vpcStack);
 
+// Lambda stack with environment-specific configuration
 const lambdaStack = new LambdaStack(envScope, "LambdaStack", {
   vpc: vpcStack.vpc,
   dbSecretArn: databaseStack.databaseSecret.secretArn,
   repo: imageRepoStack.repo,
-  lambdaConfig: {
-    functionName: `${env}__reonic-lambda-app`
-  }
+  lambdaConfig: envConfig.lambda,
+  functionName: `${env}__reonic-lambda-app`
 })
 
 lambdaStack.addDependency(vpcStack);
 lambdaStack.addDependency(databaseStack);
 lambdaStack.addDependency(imageRepoStack);
-
-// Note: Cannot use security group reference due to circular dependency
-// databaseStack.allowConnectionsFromSecurityGroup(lambdaStack.lambdaSecurityGroup);

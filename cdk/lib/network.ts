@@ -8,7 +8,7 @@ export interface SubnetConfig {
 }
 
 export interface VpcConfig {
-  name: string
+  name: string;
   cidr: string;
   maxAzs: number;
   natGateways: number;
@@ -35,7 +35,7 @@ export class VpcStack extends cdk.Stack {
           subnetType: subnet.type,
         })
       ),
-      natGateways: props.vpcConfig.natGateways, // No NAT gateways. 
+      natGateways: props.vpcConfig.natGateways,
     });
 
     // Create network connectivity to secrets manager
