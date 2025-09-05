@@ -50,10 +50,14 @@ jobs:
         id: synth
         working-directory: cdk
         run: |
+
           echo "## 🔍 CDK Synth Results" > synth_results.md
           echo "" >> synth_results.md
           echo "### Environment: \`$ENVIRONMENT\`" >> synth_results.md
           echo "" >> synth_results.md
+
+          # turn off notice
+          npx cdk acknowledge 34892
           
           if npx cdk synth --all -c env=$ENVIRONMENT > synth_output.txt 2>&1; then
             echo "✅ **CDK Synth**: Success" >> synth_results.md
