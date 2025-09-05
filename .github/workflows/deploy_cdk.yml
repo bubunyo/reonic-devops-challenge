@@ -1,17 +1,24 @@
-name: Deploy CDK Stack
+name: CDK Stack Management
 
 on:
   push:
     branches: [main]
-    # paths:
-    #   - 'cdk/**'
+    paths:
+      - 'cdk/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cdk/**'
 
 permissions:
   id-token: write
   contents: read
+  pull-requests: write
 
 jobs:
-  deploy:
+  # Job for pull requests - synth and diff only
+  plan:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     environment: staging
 
@@ -29,6 +36,133 @@ jobs:
           npm install -g aws-cdk
           npm run install:all
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Set environment variable
+        run: |
+          echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+
+      - name: CDK Synth
+        id: synth
+        working-directory: cdk
+        run: |
+          echo "## 🔍 CDK Synth Results" > synth_results.md
+          echo "" >> synth_results.md
+          echo "### Environment: \`$ENVIRONMENT\`" >> synth_results.md
+          echo "" >> synth_results.md
+          
+          if npx cdk synth --all -c env=$ENVIRONMENT > synth_output.txt 2>&1; then
+            echo "✅ **CDK Synth**: Success" >> synth_results.md
+            echo "" >> synth_results.md
+            echo "<details><summary>Synth Output</summary>" >> synth_results.md
+            echo "" >> synth_results.md
+            echo '```' >> synth_results.md
+            tail -n 20 synth_output.txt >> synth_results.md
+            echo '```' >> synth_results.md
+            echo "</details>" >> synth_results.md
+          else
+            echo "❌ **CDK Synth**: Failed" >> synth_results.md
+            echo "" >> synth_results.md
+            echo '```' >> synth_results.md
+            cat synth_output.txt >> synth_results.md
+            echo '```' >> synth_results.md
+            exit 1
+          fi
+
+      - name: CDK Diff
+        id: diff
+        working-directory: cdk
+        continue-on-error: true
+        run: |
+          echo "" >> synth_results.md
+          echo "## 📋 CDK Diff Results" >> synth_results.md
+          echo "" >> synth_results.md
+          
+          if npx cdk diff --all -c env=$ENVIRONMENT > diff_output.txt 2>&1; then
+            if grep -q "There were no differences" diff_output.txt; then
+              echo "ℹ️ **No infrastructure changes detected**" >> synth_results.md
+            else
+              echo "⚠️ **Infrastructure changes detected**" >> synth_results.md
+              echo "" >> synth_results.md
+              echo "<details><summary>View Changes</summary>" >> synth_results.md
+              echo "" >> synth_results.md
+              echo '```diff' >> synth_results.md
+              cat diff_output.txt >> synth_results.md
+              echo '```' >> synth_results.md
+              echo "</details>" >> synth_results.md
+            fi
+          else
+            echo "❌ **CDK Diff**: Failed to generate diff" >> synth_results.md
+            echo "" >> synth_results.md
+            echo '```' >> synth_results.md
+            cat diff_output.txt >> synth_results.md
+            echo '```' >> synth_results.md
+          fi
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = './cdk/synth_results.md';
+            
+            if (fs.existsSync(path)) {
+              const body = fs.readFileSync(path, 'utf8');
+              
+              // Find existing comment
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              
+              const botComment = comments.data.find(comment => 
+                comment.user.login === 'github-actions[bot]' && 
+                comment.body.includes('🔍 CDK Synth Results')
+              );
+              
+              if (botComment) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body: body
+                });
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: body
+                });
+              }
+            }
+
+  # Job for main branch pushes - deploy
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install -g aws-cdk
+          npm run install:all
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -39,7 +173,6 @@ jobs:
       - name: Set env variable
         run: |
           echo "ENVIRONMENT=staging" >> $GITHUB_ENV
-
 
       - name: Deploy CDK
         working-directory: cdk
