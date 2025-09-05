@@ -94,6 +94,23 @@ export class GitHubStack extends cdk.Stack {
     // Grant SNS publish permission
     this.alarmTopic.grantPublish(this.deploymentRole);
 
+    // Add CloudFormation permissions for CDK diff and deploy operations
+    this.deploymentRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'cloudformation:DescribeStacks',
+        'cloudformation:DescribeStackEvents',
+        'cloudformation:DescribeStackResources', 
+        'cloudformation:DescribeStackResource',
+        'cloudformation:GetTemplate',
+        'cloudformation:ListStackResources',
+        'cloudformation:GetStackPolicy'
+      ],
+      resources: [
+        `arn:aws:cloudformation:${this.region}:${this.account}:stack/*/*`
+      ]
+    }));
+
 
     // Outputs
     new cdk.CfnOutput(this, 'GitHubRoleArn', {
