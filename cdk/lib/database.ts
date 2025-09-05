@@ -108,10 +108,6 @@ export class DatabaseStack extends cdk.Stack {
     });
   }
 
-  // public allowConnectionsFrom(securityGroup: ec2.ISecurityGroup,) {
-  //   this.database.connections.allowFrom(securityGroup, ec2.Port.tcp(this.config.port), 'Allow access from Lambda');
-  // }
-
   // New method to allow connections from specific security group
   public allowConnectionsFromSecurityGroup(securityGroup: ec2.ISecurityGroup): void {
     // Get the database security group and add specific rule

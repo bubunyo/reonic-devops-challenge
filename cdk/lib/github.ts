@@ -52,18 +52,6 @@ export class GitHubStack extends cdk.Stack {
       maxSessionDuration: cdk.Duration.hours(1),
     });
 
-    // Base permissions for deployment workflows
-    // this.deploymentRole.addToPolicy(new iam.PolicyStatement({
-    //   effect: iam.Effect.ALLOW,
-    //   actions: [
-    //     'cloudwatch:PutMetricData',
-    //     'logs:CreateLogGroup',
-    //     'logs:CreateLogStream',
-    //     'logs:PutLogEvents'
-    //   ],
-    //   resources: ['*']
-    // }));
-
     // Scoped CloudWatch permissions
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
@@ -79,7 +67,6 @@ export class GitHubStack extends cdk.Stack {
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
-        // 'cloudwatch:PutMetricData',
         'logs:CreateLogGroup',
         'logs:CreateLogStream',
         'logs:PutLogEvents'
@@ -143,6 +130,7 @@ export class GitHubStack extends cdk.Stack {
       ],
       resources: [repositoryArn] // GetAuthorizationToken needs * resource
     }));
+
     this.deploymentRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [

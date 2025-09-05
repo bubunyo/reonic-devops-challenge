@@ -2,7 +2,6 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as rds from 'aws-cdk-lib/aws-rds';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import * as ecr from "aws-cdk-lib/aws-ecr";
@@ -88,7 +87,6 @@ export class LambdaStack extends cdk.Stack {
       action: 'lambda:InvokeFunction',
       sourceArn: `${apiGateway.arnForExecuteApi()}/*/*`,
     });
-
 
 
     // Outputs
