@@ -1,11 +1,11 @@
 # Reonic DevOps Challenge - Submission
 
 ## Infrastructure Design
-modular CDK architecture with separate constructs for each component:
+Modular CDK architecture with separate constructs for each component:
 - Network Stack: VPC with 3-tier architecture (public/private/isolated subnets)
-    - public subnet: all public facing infrastructure
-    - private subnet: all public facing infrastructure
-    - isolated subnet: all internal infrstructure with egress requirements. eg lambdas 
+    - public subnet: all public-facing infrastructure
+    - private subnet: application infrastructure with egress capabilities
+    - isolated subnet: all internal infrastructure with no internet access. e.g. databases 
 - Database Stack: RDS PostgreSQL in isolated subnets with Secrets Manager integration
 - Lambda Stack: Containerized Lambda with API Gateway integration
 - GitHub Stack: OIDC provider for secure CI/CD authentication
@@ -20,16 +20,16 @@ modular CDK architecture with separate constructs for each component:
 Dual-pipeline approach:
 - CDK Pipeline: Deploys infrastructure changes (`deploy_cdk.yml`)
 - Application Pipeline: Builds and deploys Lambda containers (`deploy_app.yml`)
-- Sperate App Lifecycle: Changes in diferent folders trigger deploys respective deploy process. This way changes in app folder done trigger an infrastructure deploy
-- Deployment Metrics: Push deployment metrics into Cloudwatch 
+- Separate App Lifecycle: Changes in different folders trigger respective deployment processes. This way changes in app folder don't trigger an infrastructure deploy
+- Deployment Metrics: Push deployment metrics into CloudWatch 
 
 This separation allows for independent infrastructure and application deployments.
 
 ## Setup Instructions 
 
 ### Prerequisites
-- aws cli installed. More information: 
-- aws cdk installation. More Information: 
+- aws cli installed. More information: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+- aws cdk installation. More Information: https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html 
 
 ### Setup
 1. Install all dependencies across both projects
@@ -37,10 +37,10 @@ This separation allows for independent infrastructure and application deployment
 npm run install:all
 ```
 
-2. Configure AWS credentials. Take not of the created profile name after account configuration
+2. Configure AWS credentials. Take note of the created profile name after account configuration
 ```bash
 aws configure
-``
+```
 3. After initial AWS account configuration, authenticate your session. 
 ```bash
  aws sso login --profile <aws_sso_profile_name>
@@ -51,25 +51,22 @@ aws configure
 npm run bootstrap --profile=<aws_sso_profile_name>
 ```
 
-6. Run synth,diff deploy with the command 
+5. Run synth, diff, and deploy with the command 
 ```bash
 npm run synth --profile=<aws_sso_profile_name>
 npm run cdk diff --profile=<aws_sso_profile_name>
 npm run cdk deploy --profile=<aws_sso_profile_name>
 ```
 
-## CI/CD
-A a change to the app and cdk folder will trigger a respective deploy.
 
 ## Deployment
-The lambda is currently deployed to an api gateway with the following environement endpoints
+The lambda is currently deployed to an api gateway with the following environment endpoints
 dev: https://7cncrp0zz9.execute-api.eu-north-1.amazonaws.com
 staging: https://9h9f4sm9q5.execute-api.eu-north-1.amazonaws.com
 
 The lambda can be triggered with the following curl request.
-```base
-curl -XPOST "<env-endpoint>/prod/2015-03-31/functions/function/invocations" -H "Content-Typ
-e: application/json" -d '{}'
+```bash
+curl -XPOST "<env-endpoint>/prod/2015-03-31/functions/function/invocations" -H "Content-Type: application/json" -d '{}'
 ```
 
 
@@ -112,6 +109,26 @@ aws logs tail /aws/lambda/dev__reonic-lambda-app --follow --profile=<aws_sso_pro
 aws logs tail /aws/lambda/staging__reonic-lambda-app --follow --profile=<aws_sso_profile_name>
 ```
 
+## GitHub Actions Configuration
+
+### Required Secrets
+The following secrets must be configured in your GitHub repository settings:
+
+- `AWS_GITHUB_ROLE_ARN` - ARN of the GitHub Actions IAM role for AWS authentication
+- `SNS_TOPIC_ARN` - ARN of the SNS topic for deployment notifications
+
+### Required Variables
+The following variables should be configured:
+
+- `AWS_REGION` - AWS region for deployments (e.g., `eu-north-1`)
+
+To configure these:
+1. Go to your GitHub repository settings
+2. Navigate to Environments
+3. Create a new Environement with name staging
+4. Add the secrets under the "Environment Secrets" section
+5. Add the variables under the "Environment Secrets" section
+
 ## Improvements 
 
 - Enable proper SSL certificate validation with RDS CA bundle
@@ -133,7 +150,7 @@ aws logs tail /aws/lambda/staging__reonic-lambda-app --follow --profile=<aws_sso
 - Alerting: Implement comprehensive alarm strategy
 - Distributed Tracing: Add AWS X-Ray integration
 - Performance Metrics: Track Lambda cold starts, database connection pooling
-- Seperate Production/Staging Account: Seperate account credentials for different environments
+- Separate Production/Staging Account: Separate account credentials for different environments
 - GitHub Stack Separation: Move GitHub OIDC stack to prevent accidental deletion
 - Shared Resources: Create separate stack for cross-environment resources
 - Environment-Specific Configurations: Implement proper environment variable management
